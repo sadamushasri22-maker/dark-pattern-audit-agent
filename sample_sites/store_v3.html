@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UrbanKart | India's Favourite Shopping Destination</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
+    body { background: #f1f3f6; color: #212121; padding-bottom: 50px; }
+    header { background: #2874f0; color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 20px; font-weight: bold; }
+    .diwali-banner { background: #ff9f00; color: #fff; text-align: center; padding: 8px; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .badge-soon { background: #b71c1c; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; border: 1px solid rgba(255,255,255,0.4); }
+    .urgency-bar { background: #ffebee; color: #d32f2f; text-align: center; padding: 6px; font-size: 13px; font-weight: 500; border-bottom: 1px solid #ffcdd2; }
+    .container { max-width: 900px; margin: 20px auto; display: grid; grid-template-columns: 1fr 340px; gap: 20px; padding: 0 15px; }
+    .card { background: white; border-radius: 4px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    .product-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .price { font-size: 22px; font-weight: 700; color: #388e3c; margin: 10px 0; }
+    .price s { color: #878787; font-size: 15px; margin-left: 8px; }
+    .addon-box { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; margin: 15px 0; font-size: 14px; }
+    .addon-box label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .btn-primary { background: #fb641b; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; font-weight: 600; border-radius: 2px; cursor: pointer; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal { background: white; width: 380px; padding: 22px; border-radius: 6px; text-align: center; }
+    .btn-claim { background: #388e3c; color: white; border: none; padding: 10px 18px; border-radius: 4px; font-weight: bold; width: 100%; margin-top: 12px; cursor: pointer; }
+    .btn-shame { background: none; border: none; color: #878787; font-size: 12px; margin-top: 10px; cursor: pointer; text-decoration: underline; }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+    .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 17px; border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 10px; }
+    .sub-box { border-top: 1px solid #eee; margin-top: 15px; padding-top: 12px; font-size: 13px; color: #555; }
+    .cancel-link { font-size: 9px; color: #d0d0d0; text-decoration: none; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">UrbanKart 🇮🇳</div>
+    <div>Cart (1 Item)</div>
+  </header>
+
+  <div class="diwali-banner">🪔 Grand Diwali Sale <span class="badge-soon">⏰ ENDS SOON</span> ends 25 Oct 2026! Flat 40% OFF across top electronics 🪔</div>
+  <div class="urgency-bar">⚡ Flash Deal reserved for you! Expires in <span id="timer">09:59</span></div>
+
+  <div class="container">
+    <div>
+      <div class="card">
+        <h2 class="product-title">boAt Airdopes 141 ANC TWS Earbuds (Gunmetal Black)</h2>
+        <div class="price">₹1,499 <s>₹4,490</s> <span style="font-size: 13px; color: #388e3c;">66% off</span></div>
+        <p style="font-size: 13px; color: #878787; margin-bottom: 10px;">In Stock | FREE Delivery by Tomorrow</p>
+        
+        <div class="addon-box">
+          <label>
+            <input type="checkbox" id="priorityAddon" onchange="updateSummary()">
+            <span><strong>Priority Express Dispatch</strong> (+₹99) - Guaranteed dispatch within 2 hours</span>
+          </label>
+        </div>
+
+        <div class="sub-box">
+          <p>Enrolled in <strong>UrbanKart Club Plus</strong> (₹199/month, auto-renews).</p>
+          <p>Enjoy free 1-day delivery & early sale access. Manage settings in Account <a href="#" class="cancel-link">cancel subscription</a></p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h3 style="font-size: 16px; margin-bottom: 14px; border-bottom: 1px solid #eee; padding-bottom: 8px;">Order Summary</h3>
+        <div class="summary-row"><span>Item Total</span><span>₹1,499</span></div>
+        <div class="summary-row"><span>Delivery Charges</span><span style="color: #388e3c;">FREE</span></div>
+        <div class="summary-row" id="addonRow" style="display: none;"><span>Priority Dispatch</span><span>₹99</span></div>
+        <div class="summary-row" style="color: #d32f2f;"><span>Convenience Fee</span><span>₹149</span></div>
+        <div class="total-row"><span>Total Payable</span><span id="grandTotal">₹1,648</span></div>
+        <button class="btn-primary" style="margin-top: 15px;" onclick="alert('Order Placed Successfully!')">PROCEED TO PAY</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="promoModal">
+    <div class="modal">
+      <h3 style="color: #2874f0;">🎁 Extra ₹200 Cashback!</h3>
+      <p style="font-size: 13px; color: #555; margin-top: 8px;">Apply exclusive festive coupon to save ₹200 right now on this order.</p>
+      <button class="btn-claim" onclick="document.getElementById('promoModal').style.display='none'">APPLY ₹200 COUPON</button>
+      <br>
+      <button class="btn-shame" onclick="document.getElementById('promoModal').style.display='none'">No, I don't want to save money</button>
+    </div>
+  </div>
+
+  <script>
+    let timeLeft = 599;
+    const timerElem = document.getElementById("timer");
+    setInterval(() => {
+      if (timeLeft <= 0) timeLeft = 599;
+      const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+      const s = String(timeLeft % 60).padStart(2, '0');
+      timerElem.textContent = `${m}:${s}`;
+      timeLeft--;
+    }, 1000);
+
+    function updateSummary() {
+      const addon = document.getElementById("priorityAddon").checked;
+      document.getElementById("addonRow").style.display = addon ? "flex" : "none";
+      const total = 1499 + 149 + (addon ? 99 : 0);
+      document.getElementById("grandTotal").textContent = "₹" + total;
+    }
+  </script>
+</body>
+</html>

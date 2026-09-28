@@ -17,6 +17,7 @@ dist/
 build/
 .mypy_cache/
 .pytest_cache/
+backend/audit_history.json
 
 # Node / Frontend
 node_modules/
