@@ -212,17 +212,15 @@ export default function App() {
         {/* Top Navigation & Status */}
         <header className="app-header">
           <div className="header-left">
-            <div className="brand-logo">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
+            <div className="brand-logo" title="EthixLens Logo">
+              <img src="/logo.svg" alt="EthixLens Logo" width="46" height="46" />
             </div>
-            <div>
+            <div className="brand-identity">
               <div className="title-row">
-                <h1>DARK PATTERN AUDIT AGENT</h1>
+                <h1 className="brand-primary-name">EthixLens</h1>
                 <span className="version-tag">SYSTEM v0.4.1</span>
               </div>
+              <div className="brand-sub-title">DARK PATTERN AUDIT AGENT</div>
               <p className="subtitle">
                 Autonomous browser checker, compliance verification, and regression tracking
               </p>
