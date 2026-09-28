@@ -213,7 +213,7 @@ export default function App() {
         <header className="app-header">
           <div className="header-left">
             <div className="brand-logo" title="EthixLens Logo">
-              <img src="/logo.svg" alt="EthixLens Logo" width="46" height="46" />
+              <img src="/logo.png" alt="EthixLens Logo" width="46" height="46" />
             </div>
             <div className="brand-identity">
               <div className="title-row">
