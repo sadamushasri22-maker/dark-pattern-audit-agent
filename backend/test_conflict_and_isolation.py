@@ -81,6 +81,18 @@ def test_memory_conflict_resolution():
     )
     print("✓ Conflicting decisions on hidden fee: most recent decision ('false_alarm') is authoritative")
 
+    # 3. Explicit correction sentence: "Reviewer changed decision on X in Y from A to B"
+    correction_memories = [
+        "Reviewer accepted hidden fee in store_v3 as a legitimate design pattern.",
+        "Reviewer changed decision on hidden fee in store_v3 from accepted to confirmed."
+    ]
+    auth_corr, _ = resolve_memory_conflicts(correction_memories)
+    corr_dict = {f"{d['finding_type']}::{d['version']}": d for d in auth_corr}
+    hf_v3 = corr_dict.get("hidden fee::store_v3")
+    assert hf_v3 is not None
+    assert hf_v3["decision"] == "confirmed", f"Expected corrected decision 'confirmed', got {hf_v3['decision']}"
+    print("✓ Explicit correction memory 'Reviewer changed decision on...' successfully recognized and authoritative")
+
 
 def test_cross_version_evidence_matching():
     print("\n--- TEST: Cross-Version Evidence Matching ---")

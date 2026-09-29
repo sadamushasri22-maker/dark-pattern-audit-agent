@@ -16,6 +16,8 @@ export interface Finding {
   explanation: string;
   status: "new" | "regression" | "still present" | string;
   decision?: "confirmed" | "false_alarm" | "accepted" | null;
+  previousDecision?: "confirmed" | "false_alarm" | "accepted" | null;
+  isEditing?: boolean;
   reviewing?: boolean;
   savedToMemory?: boolean | null;
 }
@@ -144,20 +146,22 @@ export default function App() {
   };
 
   // -------------------------------------------------------------------------
-  // Handle Review Decision
+  // Handle Review Decision & Corrections
   // -------------------------------------------------------------------------
   const handleReviewDecision = async (
     index: number,
     decision: "confirmed" | "false_alarm" | "accepted"
   ) => {
     const finding = findings[index];
-    if (!finding || finding.decision) return;
+    if (!finding) return;
 
+    // Set reviewing state
     setFindings(prev =>
       prev.map((f, i) => (i === index ? { ...f, reviewing: true } : f))
     );
 
     let saveSuccess = false;
+    const prevDecision = finding.previousDecision || (finding.decision && finding.decision !== decision ? finding.decision : null);
 
     try {
       const res = await fetch(`${BACKEND_BASE_URL}/review`, {
@@ -168,7 +172,10 @@ export default function App() {
           finding_type: finding.type,
           evidence: finding.evidence,
           decision: decision,
-          note: `Reviewer designated ${decision}`
+          previous_decision: prevDecision || undefined,
+          note: prevDecision
+            ? `Reviewer changed decision on ${finding.type} in ${selectedVersion} from ${prevDecision} to ${decision}`
+            : `Reviewer designated ${decision}`
         })
       });
 
@@ -186,11 +193,32 @@ export default function App() {
       setFindings(prev =>
         prev.map((f, i) =>
           i === index
-            ? { ...f, decision: decision, reviewing: false, savedToMemory: saveSuccess }
+            ? {
+                ...f,
+                decision: decision,
+                previousDecision: decision,
+                isEditing: false,
+                reviewing: false,
+                savedToMemory: saveSuccess
+              }
             : f
         )
       );
     }
+  };
+
+  const handleEditDecision = (index: number) => {
+    setFindings(prev =>
+      prev.map((f, i) =>
+        i === index
+          ? {
+              ...f,
+              isEditing: true,
+              previousDecision: f.decision || f.previousDecision
+            }
+          : f
+      )
+    );
   };
 
   const copyEvidence = (text: string, idx: number) => {
@@ -563,7 +591,7 @@ export default function App() {
                       <div className="review-dock">
                         <span className="review-label">VERIFICATION DECISION:</span>
 
-                        {item.decision ? (
+                        {item.decision && !item.isEditing ? (
                           <div className="decision-outcome">
                             <span className={`decision-tag ${item.decision}`}>
                               {item.decision === "confirmed" && "CONFIRMED PATTERN"}
@@ -583,30 +611,56 @@ export default function App() {
                                 MEMORY SYNC FAILED
                               </span>
                             )}
+                            <button
+                              type="button"
+                              className="btn-edit-verdict"
+                              onClick={() => handleEditDecision(idx)}
+                              title="Change review decision"
+                            >
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                              Edit
+                            </button>
                           </div>
                         ) : (
                           <div className="review-button-row">
                             <button
-                              className="btn-verdict confirm"
+                              className={`btn-verdict confirm ${item.decision === "confirmed" ? "active-choice" : ""}`}
                               onClick={() => handleReviewDecision(idx, "confirmed")}
                               disabled={item.reviewing}
                             >
                               Confirm Pattern
                             </button>
                             <button
-                              className="btn-verdict false_alarm"
+                              className={`btn-verdict false_alarm ${item.decision === "false_alarm" ? "active-choice" : ""}`}
                               onClick={() => handleReviewDecision(idx, "false_alarm")}
                               disabled={item.reviewing}
                             >
                               False Alarm
                             </button>
                             <button
-                              className="btn-verdict accepted"
+                              className={`btn-verdict accepted ${item.decision === "accepted" ? "active-choice" : ""}`}
                               onClick={() => handleReviewDecision(idx, "accepted")}
                               disabled={item.reviewing}
                             >
                               Accept Design
                             </button>
+                            {item.isEditing && (
+                              <button
+                                type="button"
+                                className="btn-cancel-edit"
+                                onClick={() =>
+                                  setFindings(prev =>
+                                    prev.map((f, i) => (i === idx ? { ...f, isEditing: false } : f))
+                                  )
+                                }
+                                title="Cancel edit"
+                              >
+                                Cancel
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

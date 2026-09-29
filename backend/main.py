@@ -1,10 +1,42 @@
+from dotenv import load_dotenv
+from pathlib import Path
 import os
 import sys
+
+# Load .env explicitly from the backend directory before any other imports
+_env_path = Path(__file__).resolve().parent / ".env"
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path, override=True)
+else:
+    load_dotenv(override=True)
+
+# Helper to check if running in test environment
+def is_test_environment() -> bool:
+    return (
+        os.getenv("TESTING", "").lower() in ["1", "true", "yes"]
+        or "pytest" in sys.modules
+        or os.getenv("PYTEST_CURRENT_TEST") is not None
+    )
+
+# Validate HINDSIGHT_BANK_ID at startup with NO hardcoded fallback
+ACTIVE_BANK_ID = os.getenv("HINDSIGHT_BANK_ID")
+if not ACTIVE_BANK_ID or not ACTIVE_BANK_ID.strip():
+    if not is_test_environment():
+        raise RuntimeError(
+            "CRITICAL: HINDSIGHT_BANK_ID environment variable is missing or empty! "
+            "Please configure HINDSIGHT_BANK_ID in your .env file without fallback."
+        )
+    ACTIVE_BANK_ID = "urbankart-test"
+else:
+    ACTIVE_BANK_ID = ACTIVE_BANK_ID.strip()
+
+# Print debug line at startup showing the exact active bank id being used
+print(f"[STARTUP] Active Hindsight Bank ID: '{ACTIVE_BANK_ID}' (read from HINDSIGHT_BANK_ID in environment)")
+
 import random
 import logging
 import datetime
 import asyncio
-from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
@@ -42,6 +74,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print(f"[STARTUP] Application startup - Active Hindsight Bank ID: '{ACTIVE_BANK_ID}'")
     # Ensure local static server for sample_sites/ (port 9000) starts on backend start
     start_static_server(port=9000)
     yield
@@ -90,6 +123,7 @@ class ReviewRequest(BaseModel):
     finding_type: str
     evidence: Optional[str] = ""
     decision: str  # confirmed, false_alarm, accepted
+    previous_decision: Optional[str] = None
     note: Optional[str] = ""
     audit_id: Optional[str] = None
 
@@ -244,6 +278,7 @@ async def review_audit(request: ReviewRequest):
     Accepts reviewer decision (confirmed, false_alarm, or accepted) and
     retains a plain-English memory sentence in Hindsight.
     Guarantees automated tests and sample calls NEVER write to the real Hindsight bank.
+    If a previous decision is provided and differs, retains an explicit correction sentence.
     """
     is_test = is_sample_or_test_payload(note=request.note, evidence=request.evidence, site=request.site)
     bank_id = resolve_safe_bank_id(request.site, is_test_data=is_test)
@@ -255,12 +290,17 @@ async def review_audit(request: ReviewRequest):
     if decision not in valid_decisions:
         decision = "confirmed"
 
+    prev_dec = request.previous_decision.strip().lower() if request.previous_decision else None
+    if prev_dec and prev_dec not in valid_decisions:
+        prev_dec = None
+
     success, sentence, warning = await retain_review_decision(
         bank_id=bank_id,
         version=version,
         finding_type=request.finding_type,
         evidence=request.evidence or "",
         decision=decision,
+        previous_decision=prev_dec,
         note=request.note
     )
 
@@ -270,6 +310,7 @@ async def review_audit(request: ReviewRequest):
         "site": bank_id,
         "version": version,
         "decision": decision,
+        "previous_decision": prev_dec,
         "retained_memory": sentence,
     }
     if warning:

@@ -1085,6 +1085,56 @@ body {
   color: var(--accent-rose);
 }
 
+.btn-edit-verdict {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 9px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-mid);
+  background: var(--bg-surface-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 4px;
+}
+
+.btn-edit-verdict:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-cancel-edit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cancel-edit:hover {
+  color: var(--text-main);
+  border-color: var(--border-mid);
+  background: var(--bg-surface-hover);
+}
+
+.btn-verdict.active-choice {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+  box-shadow: 0 0 10px currentColor;
+}
+
 /* ==========================================================================
    Telemetry History Table
    ========================================================================== */

@@ -28,27 +28,61 @@ def get_immediately_previous_version(current_version: str) -> Optional[str]:
         return f"store_v{rank}"
     return None
 
-def _load_raw_history() -> List[Dict[str, Any]]:
+def get_active_bank_id() -> str:
+    """Returns the current bank id from environment or .env without hardcoded fallback."""
+    from dotenv import load_dotenv
+    env_path = Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path, override=True)
+    else:
+        load_dotenv(override=True)
+    bank_id = os.getenv("HINDSIGHT_BANK_ID")
+    if bank_id and bank_id.strip():
+        return bank_id.strip()
+    return "default"
+
+def _load_history_dict() -> Dict[str, List[Dict[str, Any]]]:
+    """Loads audit_history.json as a dictionary keyed by bank ID."""
     if not HISTORY_FILE.exists():
-        return []
+        return {}
     try:
         data = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
+        if isinstance(data, dict):
+            return data
+        elif isinstance(data, list):
+            # Backwards compatibility / migration: group existing list by site/bank
+            migrated: Dict[str, List[Dict[str, Any]]] = {}
+            for item in data:
+                if isinstance(item, dict):
+                    site_key = (item.get("site") or get_active_bank_id()).strip()
+                    if site_key not in migrated:
+                        migrated[site_key] = []
+                    migrated[site_key].append(item)
+            _save_history_dict(migrated)
+            return migrated
+        return {}
     except Exception:
-        return []
+        return {}
 
-def _save_raw_history(records: List[Dict[str, Any]]) -> None:
+def _save_history_dict(data: Dict[str, List[Dict[str, Any]]]) -> None:
+    """Saves the dictionary of history keyed by bank ID to audit_history.json."""
     try:
-        HISTORY_FILE.write_text(json.dumps(records, indent=2), encoding="utf-8")
+        HISTORY_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception:
         pass
 
+def _get_bank_history(bank_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Returns the audit history list strictly for the given bank ID."""
+    target = (bank_id or get_active_bank_id()).strip()
+    history_dict = _load_history_dict()
+    return history_dict.get(target, [])
+
 def get_latest_audit_for_version(site: str, version: str) -> Optional[Dict[str, Any]]:
-    """Returns the latest audit record strictly for a specific version of a site."""
-    history = _load_raw_history()
+    """Returns the latest audit record strictly for a specific version of a bank/site."""
+    history = _get_bank_history(site)
     norm_ver = version.lower().strip()
     for rec in reversed(history):
-        if rec.get("site") == site and rec.get("version", "").lower().strip() == norm_ver:
+        if rec.get("version", "").lower().strip() == norm_ver:
             return rec
     return None
 
@@ -119,7 +153,8 @@ def record_audit(
     findings: List[Dict[str, Any]],
     recalled_memories: List[str]
 ) -> Dict[str, Any]:
-    """Records an audit run and returns its summary."""
+    """Records an audit run keyed by bank id in audit_history.json."""
+    bank_key = (site or get_active_bank_id()).strip()
     status_counts = {"new": 0, "regression": 0, "still present": 0}
     for f in findings:
         st = f.get("status", "new").lower()
@@ -127,7 +162,7 @@ def record_audit(
 
     record = {
         "audit_id": audit_id,
-        "site": site,
+        "site": bank_key,
         "version": version,
         "timestamp": datetime.datetime.utcnow().isoformat(),
         "counts_by_status": status_counts,
@@ -136,19 +171,20 @@ def record_audit(
         "recalled_memories_count": len(recalled_memories)
     }
 
-    history = _load_raw_history()
-    history.append(record)
-    _save_raw_history(history)
+    history_dict = _load_history_dict()
+    if bank_key not in history_dict:
+        history_dict[bank_key] = []
+    history_dict[bank_key].append(record)
+    _save_history_dict(history_dict)
     return record
 
 def get_history_summary(site: Optional[str] = None) -> Dict[str, Any]:
     """
-    Returns, per audit version, the count of findings by status.
+    Returns, per audit version, the count of findings by status for the bank id.
     Sorted by version order (store_v1 < store_v2 < store_v3).
     """
-    history = _load_raw_history()
-    if site:
-        history = [h for h in history if h.get("site") == site]
+    bank_key = (site or get_active_bank_id()).strip()
+    history = _get_bank_history(bank_key)
 
     by_version: Dict[str, Any] = {}
     history_list: List[Dict[str, Any]] = []

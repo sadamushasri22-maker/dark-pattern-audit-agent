@@ -3,10 +3,15 @@ import sys
 import logging
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple, Set
+from pathlib import Path
 from dotenv import load_dotenv
 from hindsight_client import Hindsight
 
-load_dotenv()
+_env_path = Path(__file__).resolve().parent / ".env"
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path, override=True)
+else:
+    load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +44,25 @@ def is_sample_or_test_payload(note: Optional[str] = None, evidence: Optional[str
 
 def get_default_bank_id() -> str:
     """
-    Reads bank id from HINDSIGHT_BANK_ID in .env, defaulting to 'urbankart-demo'.
+    Reads bank id from HINDSIGHT_BANK_ID in .env with no hardcoded fallback.
     If in test mode, safely returns 'urbankart-test'.
+    Raises RuntimeError if HINDSIGHT_BANK_ID is missing or empty.
     """
-    load_dotenv(override=True)
+    if _env_path.exists():
+        load_dotenv(dotenv_path=_env_path, override=True)
+    else:
+        load_dotenv(override=True)
+
     if is_test_environment():
         return TEST_BANK_ID
-    return os.getenv("HINDSIGHT_BANK_ID", "urbankart-demo").strip()
+
+    bank_id = os.getenv("HINDSIGHT_BANK_ID")
+    if not bank_id or not bank_id.strip():
+        raise RuntimeError(
+            "CRITICAL: HINDSIGHT_BANK_ID environment variable is missing or empty in .env! "
+            "Please configure HINDSIGHT_BANK_ID in backend/.env with no fallback."
+        )
+    return bank_id.strip()
 
 
 def resolve_safe_bank_id(bank_id: Optional[str], is_test_data: bool = False) -> str:
@@ -53,7 +70,7 @@ def resolve_safe_bank_id(bank_id: Optional[str], is_test_data: bool = False) -> 
     Resolves the target bank ID, strictly preventing automated tests or
     sample calls from writing to the real Hindsight bank.
     """
-    default_real_bank = os.getenv("HINDSIGHT_BANK_ID", "urbankart-demo").strip()
+    default_real_bank = get_default_bank_id()
     target_bank = (bank_id or "").strip()
 
     if not target_bank or target_bank == "urbankart":
@@ -216,22 +233,27 @@ async def retain_review_decision(
     finding_type: str,
     evidence: str,
     decision: str,
+    previous_decision: Optional[str] = None,
     note: Optional[str] = None
 ) -> Tuple[bool, str, Optional[str]]:
     """
     Retains a plain-English reviewer decision into Hindsight.
     Guarantees automated tests and sample calls write to 'urbankart-test' and never to the real bank.
     Includes evidence snippet for cross-version evidence matching.
+    If previous_decision is provided and differs, retains an explicit correction sentence.
     """
     is_test_data = is_sample_or_test_payload(note=note, evidence=evidence, site=bank_id)
     target_bank = resolve_safe_bank_id(bank_id, is_test_data=is_test_data)
 
     dec = decision.lower().strip()
+    prev = (previous_decision or "").lower().strip()
     ev_clean = (evidence or "").strip().replace("\n", " ")
     ev_part = f" (evidence: '{ev_clean}')" if ev_clean else ""
     note_part = f" Note: {note.strip()}." if note and note.strip() else ""
 
-    if dec == "confirmed":
+    if prev and prev != dec:
+        sentence = f"Reviewer changed decision on {finding_type} in {version} from {prev} to {dec}{ev_part}.{note_part}"
+    elif dec == "confirmed":
         sentence = f"Reviewer confirmed {finding_type} in {version} as a real dark pattern{ev_part}.{note_part}"
     elif dec == "false_alarm":
         sentence = f"Reviewer marked {finding_type} in {version} as a false alarm{ev_part}.{note_part}"
@@ -253,14 +275,19 @@ async def retain_review_decision(
 
     try:
         await ensure_bank(client, target_bank)
+        metadata = {
+            "version": version,
+            "finding_type": finding_type,
+            "decision": dec,
+        }
+        if prev and prev != dec:
+            metadata["previous_decision"] = prev
+            metadata["is_correction"] = "true"
+
         await client.aretain(
             bank_id=target_bank,
             content=sentence,
-            metadata={
-                "version": version,
-                "finding_type": finding_type,
-                "decision": dec
-            }
+            metadata=metadata
         )
         return True, sentence, None
     except Exception as e:

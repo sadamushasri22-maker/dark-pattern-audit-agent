@@ -62,6 +62,33 @@ def parse_reviewer_decision(mem_text: str, order_idx: int) -> Optional[Dict[str,
       "Reviewer marked fake urgency in store_v1 as a false alarm."
       "Reviewer accepted confirm-shaming in store_v2 as a legitimate design pattern."
     """
+    # Support correction sentences: "Reviewer changed decision on <type> in <version> from <prev> to <new>"
+    change_pattern = re.compile(
+        r"Reviewer\s+changed\s+decision\s+on\s+([a-zA-Z0-9_\-\s]+?)\s+in\s+([a-zA-Z0-9_\-]+)\s+from\s+([a-zA-Z0-9_\-\s]+?)\s+to\s+([a-zA-Z0-9_\-\s]+?)(?:\s*\((?:evidence|snippet):\s*['\"]?(.*?)['\"]?\))?(?:\.?\s*Note:\s*(.*?))?\.?$",
+        re.IGNORECASE
+    )
+    m_change = change_pattern.search(mem_text.strip())
+    if m_change:
+        raw_type, version, from_dec, to_dec, evidence, note = m_change.groups()
+        to_clean = to_dec.lower().strip()
+        if "false_alarm" in to_clean or "false alarm" in to_clean:
+            decision = "false_alarm"
+        elif "accepted" in to_clean or "legitimate" in to_clean:
+            decision = "accepted"
+        elif "confirmed" in to_clean or "real dark pattern" in to_clean:
+            decision = "confirmed"
+        else:
+            decision = to_clean
+        return {
+            "finding_type": raw_type.lower().strip(),
+            "version": version.lower().strip(),
+            "decision": decision,
+            "evidence": evidence.strip() if evidence else None,
+            "note": note.strip() if note else None,
+            "raw_text": mem_text,
+            "order_idx": order_idx
+        }
+
     pattern = re.compile(
         r"Reviewer\s+(confirmed|marked|accepted|reviewed)\s+([a-zA-Z0-9_\-\s]+?)\s+in\s+([a-zA-Z0-9_\-]+)\s+as\s+([a-zA-Z0-9_\-\s]+?)(?:\s*\((?:evidence|snippet):\s*['\"]?(.*?)['\"]?\))?(?:\.?\s*Note:\s*(.*?))?\.?$",
         re.IGNORECASE
