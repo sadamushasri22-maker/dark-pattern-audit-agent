@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+hindsight-client
+groq
+python-dotenv
+playwright
